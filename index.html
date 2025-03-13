@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Persistent Dynamic Landing Page</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body, html { width: 100%; height: 100%; overflow: hidden; }
+        .menu-container { display: flex; justify-content: center; align-items: center; background: #333; padding: 10px; position: relative; }
+        .menu-wrapper { display: flex; align-items: center; gap: 20px; position: relative; }
+        .menu { display: flex; gap: 10px; padding-right: 40px; }
+        .menu a { color: white; text-decoration: none; padding: 8px 12px; background: #555; border-radius: 4px; }
+        .menu a:hover { background: #777; }
+        .burger-menu { cursor: pointer; color: white; font-size: 24px; position: absolute; right: -50px; }
+        .dropdown { display: none; position: absolute; top: 50px; left: 50%; transform: translateX(-50%); background: white; border: 1px solid #ccc; padding: 10px; text-align: center; }
+        .dropdown.show { display: block; }
+        .content { width: 100%; height: calc(100vh - 50px); }
+        iframe { width: 100%; height: 100%; border: none; }
+        .menu-list li { list-style: none; padding: 5px 0; }
+        .menu-list button { margin-left: 10px; }
+    </style>
+</head>
+<body>
+    <nav class="menu-container">
+        <div class="menu-wrapper">
+            <div class="menu" id="menu"></div>
+            <div class="burger-menu" onclick="toggleDropdown()">☰</div>
+        </div>
+    </nav>
+    
+    <div class="dropdown" id="dropdownMenu">
+        <input type="text" id="menuName" placeholder="Page Name">
+        <input type="text" id="menuUrl" placeholder="Page URL">
+        <button onclick="addMenuItem()">Add Page</button>
+        <ul id="menuList" class="menu-list"></ul>
+    </div>
+    
+    <div class="content">
+        <iframe id="contentFrame" src=""></iframe>
+    </div>
+    
+    <script>
+        async function fetchMenu() {
+            const response = await fetch('menu.php?action=get');
+            const data = await response.json();
+            return data;
+        }
+
+        async function saveMenu(menuItems) {
+            await fetch('menu.php?action=save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(menuItems)
+            });
+        }
+
+        async function renderMenu() {
+            const menu = document.getElementById('menu');
+            const menuList = document.getElementById('menuList');
+            menu.innerHTML = '';
+            menuList.innerHTML = '';
+            
+            let menuItems = await fetchMenu();
+            
+            menuItems.forEach((item, index) => {
+                let link = document.createElement('a');
+                link.href = "#";
+                link.textContent = item.name;
+                link.onclick = () => loadPage(item.url);
+                menu.appendChild(link);
+                
+                let li = document.createElement('li');
+                li.innerHTML = `${item.name} (${item.url}) <button onclick="editMenuItem(${index})">Edit</button> <button onclick="deleteMenuItem(${index})">Delete</button>`;
+                menuList.appendChild(li);
+            });
+            
+            if (menuItems.length > 0) {
+                loadPage(menuItems[0].url);
+            }
+        }
+
+        async function addMenuItem() {
+            const name = document.getElementById('menuName').value;
+            let url = document.getElementById('menuUrl').value.trim();
+            
+            if (!url.startsWith("http://") && !url.startsWith("https://")) {
+                url = "https://" + url;
+            }
+            
+            let menuItems = await fetchMenu();
+            menuItems.push({ name, url });
+            await saveMenu(menuItems);
+            renderMenu();
+        }
+
+        async function editMenuItem(index) {
+            let menuItems = await fetchMenu();
+            const newName = prompt("Edit Page Name", menuItems[index].name);
+            let newUrl = prompt("Edit Page URL", menuItems[index].url).trim();
+            
+            if (!newUrl.startsWith("http://") && !newUrl.startsWith("https://")) {
+                newUrl = "https://" + newUrl;
+            }
+            
+            if (newName && newUrl) {
+                menuItems[index] = { name: newName, url: newUrl };
+                await saveMenu(menuItems);
+                renderMenu();
+            }
+        }
+
+        async function deleteMenuItem(index) {
+            let menuItems = await fetchMenu();
+            menuItems.splice(index, 1);
+            await saveMenu(menuItems);
+            renderMenu();
+        }
+
+        function toggleDropdown() {
+            document.getElementById('dropdownMenu').classList.toggle('show');
+        }
+
+        function loadPage(url) {
+            document.getElementById('contentFrame').src = url;
+        }
+
+        renderMenu();
+    </script>
+</body>
+</html>
