@@ -1,20 +1,19 @@
 <?php
 header('Content-Type: application/json');
-
 $menuFile = 'menu.json';
 
-$action = isset($_GET['action']) ? $_GET['action'] : '';
-
-if ($action === 'get') {
+if ($_GET['action'] === 'get') {
     if (file_exists($menuFile)) {
+        header('Cache-Control: no-cache, must-revalidate');
         echo file_get_contents($menuFile);
     } else {
         echo json_encode([]);
     }
-} elseif ($action === 'save') {
-    $data = json_decode(file_get_contents('php://input'), true);
-    file_put_contents($menuFile, json_encode($data, JSON_PRETTY_PRINT));
+} elseif ($_GET['action'] === 'save') {
+    $data = file_get_contents('php://input');
+    file_put_contents($menuFile, $data);
     echo json_encode(['status' => 'success']);
 } else {
     echo json_encode(['error' => 'Invalid action']);
 }
+?>
